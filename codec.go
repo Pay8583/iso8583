@@ -344,3 +344,19 @@ func stringToGoValue(s string, rv reflect.Value) error {
 	}
 	return nil
 }
+
+// FormatValue converts a Go value to its string representation for ISO 8583 encoding.
+// Supported types: string, int*, uint*, float*, []byte, time.Time.
+func FormatValue(v any) (string, error) {
+	return goValueToString(reflect.ValueOf(v))
+}
+
+// ParseValue parses an ISO 8583 string value into the given Go variable.
+// dst must be a non-nil pointer.
+func ParseValue(s string, dst any) error {
+	rv := reflect.ValueOf(dst)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return fmt.Errorf("parseValue: expected non-nil pointer, got %s", rv.Kind())
+	}
+	return stringToGoValue(s, rv.Elem())
+}
