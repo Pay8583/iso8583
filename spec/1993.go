@@ -2,20 +2,20 @@ package spec
 
 import "github.com/Pay8583/iso8583/encoding"
 
-// ISO8583_1987 is the built-in spec for ISO 8583:1987 (fields 1–64).
-var ISO8583_1987 *Spec
+var ISO8583_1993 *Spec
 
 func init() {
 	asciiEnc := encoding.MustGet("ascii")
 	bcdEnc := encoding.MustGet("bcd")
 	binEnc := encoding.MustGet("binary")
 
-	s := NewSpec("1987", "1987")
+	s := NewSpec("1993", "1993")
 	s.MtiEncoder = asciiEnc
-	s.MaxField = 64
-	s.HasSecondaryBitmap = false
-	s.Description = "ISO 8583:1987 — original standard, fields 1–64, no secondary bitmap"
+	s.MaxField = 128
+	s.HasSecondaryBitmap = true
+	s.Description = "ISO 8583:1993 — extended standard, fields 1–128, secondary bitmap supported"
 
+	// Fields 1–64: identical to 1987 but with binary encoder for binary fields.
 	fields := []FieldSpec{
 		{Index: 2, Name: "Primary Account Number", LengthType: LLVAR, ContentType: Numeric, Encoder: bcdEnc, MaxLen: 19},
 		{Index: 3, Name: "Processing Code", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 6},
@@ -45,20 +45,39 @@ func init() {
 		{Index: 49, Name: "Currency Code (Transaction)", LengthType: Fixed, ContentType: Alpha, Encoder: asciiEnc, FixedLen: 3},
 		{Index: 51, Name: "Currency Code (Cardholder Billing)", LengthType: Fixed, ContentType: Alpha, Encoder: asciiEnc, FixedLen: 3},
 		{Index: 52, Name: "PIN Data", LengthType: Fixed, ContentType: Binary, Encoder: binEnc, FixedLen: 8},
-		{Index: 53, Name: "Security Control Info", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 16},
+		{Index: 53, Name: "Security Control Info", LengthType: Fixed, ContentType: Binary, Encoder: binEnc, FixedLen: 8},
 		{Index: 54, Name: "Additional Amounts", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 120},
 		{Index: 55, Name: "ICC System Related Data", LengthType: LLLVAR, ContentType: Binary, Encoder: binEnc, MaxLen: 255},
 		{Index: 60, Name: "Private Data (60)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999},
 		{Index: 61, Name: "Private Data (61)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999},
 		{Index: 62, Name: "Private Data (62)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999},
 		{Index: 63, Name: "Private Data (63)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999},
-		{Index: 64, Name: "MAC", LengthType: Fixed, ContentType: Binary, Encoder: binEnc, FixedLen: 8},
+
+		// Fields 65–128 (new in 1993).
+		{Index: 65, Name: "Settlement Code", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 1, Optional: true},
+		{Index: 70, Name: "Network Management Info Code", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 3, Optional: true},
+		{Index: 90, Name: "Original Data Elements", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999, Optional: true},
+		{Index: 95, Name: "Replacement Amounts", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999, Optional: true},
+		{Index: 96, Name: "Message Security Code", LengthType: Fixed, ContentType: Binary, Encoder: binEnc, FixedLen: 8, Optional: true},
+		{Index: 97, Name: "Net Settlement Amount", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 17, Optional: true},
+		{Index: 100, Name: "Receiving Institution ID", LengthType: LLVAR, ContentType: Numeric, Encoder: bcdEnc, MaxLen: 11, Optional: true},
+		{Index: 102, Name: "Account ID 1", LengthType: LLVAR, ContentType: Numeric, Encoder: bcdEnc, MaxLen: 28, Optional: true},
+		{Index: 103, Name: "Account ID 2", LengthType: LLVAR, ContentType: Numeric, Encoder: bcdEnc, MaxLen: 28, Optional: true},
+		{Index: 120, Name: "Record Data (120)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999, Optional: true},
+		{Index: 121, Name: "Record Data (121)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999, Optional: true},
+		{Index: 122, Name: "Record Data (122)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999, Optional: true},
+		{Index: 123, Name: "Record Data (123)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999, Optional: true},
+		{Index: 124, Name: "Record Data (124)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999, Optional: true},
+		{Index: 125, Name: "Record Data (125)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999, Optional: true},
+		{Index: 126, Name: "Record Data (126)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999, Optional: true},
+		{Index: 127, Name: "Private Data (127)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999, Optional: true},
+		{Index: 128, Name: "MAC", LengthType: Fixed, ContentType: Binary, Encoder: binEnc, FixedLen: 8, Optional: true},
 	}
 
 	for i := range fields {
 		s.AddField(fields[i].Index, fields[i])
 	}
 
-	ISO8583_1987 = s
+	ISO8583_1993 = s
 	MustRegister(s)
 }
