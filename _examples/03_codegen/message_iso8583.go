@@ -3,373 +3,133 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
 
 	"github.com/Pay8583/iso8583"
 	"github.com/Pay8583/iso8583/spec"
 )
 
-func (m *AuthRequest) MarshalISO8583(s *spec.Spec) ([]byte, error) {
-	var buf []byte
+func (m *AuthRequest) MarshalISO8583(p *spec.Protocol) ([]byte, error) {
+	var buf bytes.Buffer
+	w := iso8583.NewWriter(p, &buf)
 
-	// MTI
-	buf = append(buf, m.MTI...)
-	var primary, secondary uint64
+	if err := w.WriteMTI(uint(m.MTI)); err != nil {
+		return nil, err
+	}
+
 	if m.PAN != "" {
-		primary |= 1 << 62
+		if err := w.WriteString(2, m.PAN); err != nil {
+			return nil, err
+		}
 	}
 	if m.ProcCode != "" {
-		primary |= 1 << 61
+		if err := w.WriteString(3, m.ProcCode); err != nil {
+			return nil, err
+		}
 	}
 	if m.Amount != 0 {
-		primary |= 1 << 60
+		if err := w.WriteInt(4, int64(m.Amount)); err != nil {
+			return nil, err
+		}
 	}
 	if m.STAN != "" {
-		primary |= 1 << 53
+		if err := w.WriteString(11, m.STAN); err != nil {
+			return nil, err
+		}
 	}
 	if m.TimeLocal != "" {
-		primary |= 1 << 52
+		if err := w.WriteString(12, m.TimeLocal); err != nil {
+			return nil, err
+		}
 	}
 	if m.DateLocal != "" {
-		primary |= 1 << 51
+		if err := w.WriteString(13, m.DateLocal); err != nil {
+			return nil, err
+		}
 	}
 	if m.Track2 != "" {
-		primary |= 1 << 29
+		if err := w.WriteString(35, m.Track2); err != nil {
+			return nil, err
+		}
 	}
 	if m.RetRefNum != "" {
-		primary |= 1 << 27
+		if err := w.WriteString(37, m.RetRefNum); err != nil {
+			return nil, err
+		}
 	}
 	if m.TerminalID != "" {
-		primary |= 1 << 23
+		if err := w.WriteString(41, m.TerminalID); err != nil {
+			return nil, err
+		}
 	}
 	if m.CurrencyCode != "" {
-		primary |= 1 << 15
-	}
-
-	// Bitmap
-	if secondary != 0 {
-		primary |= 1 << 63
-		buf = append(buf,
-			byte(primary>>56), byte(primary>>48), byte(primary>>40), byte(primary>>32),
-			byte(primary>>24), byte(primary>>16), byte(primary>>8), byte(primary),
-			byte(secondary>>56), byte(secondary>>48), byte(secondary>>40), byte(secondary>>32),
-			byte(secondary>>24), byte(secondary>>16), byte(secondary>>8), byte(secondary),
-		)
-	} else {
-		buf = append(buf,
-			byte(primary>>56), byte(primary>>48), byte(primary>>40), byte(primary>>32),
-			byte(primary>>24), byte(primary>>16), byte(primary>>8), byte(primary),
-		)
-	}
-
-	// Fields
-	// Field 2: PAN
-	if m.PAN != "" {
-		fs := s.GetField(2)
-		if fs == nil {
-			return nil, fmt.Errorf("no spec for field %d", 2)
-		}
-		val, err := iso8583.FormatValue(m.PAN)
-		if err != nil {
-			return nil, err
-		}
-		buf, err = iso8583.PackField(buf, fs, val)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Field 3: ProcCode
-	if m.ProcCode != "" {
-		fs := s.GetField(3)
-		if fs == nil {
-			return nil, fmt.Errorf("no spec for field %d", 3)
-		}
-		val, err := iso8583.FormatValue(m.ProcCode)
-		if err != nil {
-			return nil, err
-		}
-		buf, err = iso8583.PackField(buf, fs, val)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Field 4: Amount
-	if m.Amount != 0 {
-		fs := s.GetField(4)
-		if fs == nil {
-			return nil, fmt.Errorf("no spec for field %d", 4)
-		}
-		val, err := iso8583.FormatValue(m.Amount)
-		if err != nil {
-			return nil, err
-		}
-		buf, err = iso8583.PackField(buf, fs, val)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Field 11: STAN
-	if m.STAN != "" {
-		fs := s.GetField(11)
-		if fs == nil {
-			return nil, fmt.Errorf("no spec for field %d", 11)
-		}
-		val, err := iso8583.FormatValue(m.STAN)
-		if err != nil {
-			return nil, err
-		}
-		buf, err = iso8583.PackField(buf, fs, val)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Field 12: TimeLocal
-	if m.TimeLocal != "" {
-		fs := s.GetField(12)
-		if fs == nil {
-			return nil, fmt.Errorf("no spec for field %d", 12)
-		}
-		val, err := iso8583.FormatValue(m.TimeLocal)
-		if err != nil {
-			return nil, err
-		}
-		buf, err = iso8583.PackField(buf, fs, val)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Field 13: DateLocal
-	if m.DateLocal != "" {
-		fs := s.GetField(13)
-		if fs == nil {
-			return nil, fmt.Errorf("no spec for field %d", 13)
-		}
-		val, err := iso8583.FormatValue(m.DateLocal)
-		if err != nil {
-			return nil, err
-		}
-		buf, err = iso8583.PackField(buf, fs, val)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Field 35: Track2
-	if m.Track2 != "" {
-		fs := s.GetField(35)
-		if fs == nil {
-			return nil, fmt.Errorf("no spec for field %d", 35)
-		}
-		val, err := iso8583.FormatValue(m.Track2)
-		if err != nil {
-			return nil, err
-		}
-		buf, err = iso8583.PackField(buf, fs, val)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Field 37: RetRefNum
-	if m.RetRefNum != "" {
-		fs := s.GetField(37)
-		if fs == nil {
-			return nil, fmt.Errorf("no spec for field %d", 37)
-		}
-		val, err := iso8583.FormatValue(m.RetRefNum)
-		if err != nil {
-			return nil, err
-		}
-		buf, err = iso8583.PackField(buf, fs, val)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Field 41: TerminalID
-	if m.TerminalID != "" {
-		fs := s.GetField(41)
-		if fs == nil {
-			return nil, fmt.Errorf("no spec for field %d", 41)
-		}
-		val, err := iso8583.FormatValue(m.TerminalID)
-		if err != nil {
-			return nil, err
-		}
-		buf, err = iso8583.PackField(buf, fs, val)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Field 49: CurrencyCode
-	if m.CurrencyCode != "" {
-		fs := s.GetField(49)
-		if fs == nil {
-			return nil, fmt.Errorf("no spec for field %d", 49)
-		}
-		val, err := iso8583.FormatValue(m.CurrencyCode)
-		if err != nil {
-			return nil, err
-		}
-		buf, err = iso8583.PackField(buf, fs, val)
-		if err != nil {
+		if err := w.WriteString(49, m.CurrencyCode); err != nil {
 			return nil, err
 		}
 	}
 
-	return buf, nil
+	if err := w.Close(); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
-func (m *AuthRequest) UnmarshalISO8583(data []byte, s *spec.Spec) error {
-	if len(data) < 12 {
-		return iso8583.ErrTruncated
-	}
+func (m *AuthRequest) UnmarshalISO8583(data []byte, p *spec.Protocol) error {
+	r := iso8583.NewReader(p, bytes.NewReader(data))
 
-	m.MTI = string(data[:4])
-	// Bitmap
-	bm, bmLen, err := iso8583.ParseBitmap(data[4:])
+	mti, err := r.ReadMTI()
 	if err != nil {
 		return err
 	}
-	cursor := 4 + bmLen
+	m.MTI = uint(mti)
 
-	// Fields
-	if bm.IsSet(2) {
-		fs := s.GetField(2)
-		if fs == nil {
-			return fmt.Errorf("no spec for field %d", 2)
-		}
-		val, consumed, err := iso8583.UnpackField(data[cursor:], fs)
-		if err != nil {
-			return err
-		}
-		if err := iso8583.ParseValue(val, &m.PAN); err != nil {
-			return err
-		}
-		cursor += consumed
+	present, err := r.PresentFields()
+	if err != nil {
+		return err
 	}
-	if bm.IsSet(3) {
-		fs := s.GetField(3)
-		if fs == nil {
-			return fmt.Errorf("no spec for field %d", 3)
+	for _, n := range present {
+		switch n {
+		case 2:
+			if err := r.ReadString(2, &m.PAN); err != nil {
+				return err
+			}
+		case 3:
+			if err := r.ReadString(3, &m.ProcCode); err != nil {
+				return err
+			}
+		case 4:
+			if err := r.ReadInt(4, &m.Amount); err != nil {
+				return err
+			}
+		case 11:
+			if err := r.ReadString(11, &m.STAN); err != nil {
+				return err
+			}
+		case 12:
+			if err := r.ReadString(12, &m.TimeLocal); err != nil {
+				return err
+			}
+		case 13:
+			if err := r.ReadString(13, &m.DateLocal); err != nil {
+				return err
+			}
+		case 35:
+			if err := r.ReadString(35, &m.Track2); err != nil {
+				return err
+			}
+		case 37:
+			if err := r.ReadString(37, &m.RetRefNum); err != nil {
+				return err
+			}
+		case 41:
+			if err := r.ReadString(41, &m.TerminalID); err != nil {
+				return err
+			}
+		case 49:
+			if err := r.ReadString(49, &m.CurrencyCode); err != nil {
+				return err
+			}
 		}
-		val, consumed, err := iso8583.UnpackField(data[cursor:], fs)
-		if err != nil {
-			return err
-		}
-		if err := iso8583.ParseValue(val, &m.ProcCode); err != nil {
-			return err
-		}
-		cursor += consumed
-	}
-	if bm.IsSet(4) {
-		fs := s.GetField(4)
-		if fs == nil {
-			return fmt.Errorf("no spec for field %d", 4)
-		}
-		val, consumed, err := iso8583.UnpackField(data[cursor:], fs)
-		if err != nil {
-			return err
-		}
-		if err := iso8583.ParseValue(val, &m.Amount); err != nil {
-			return err
-		}
-		cursor += consumed
-	}
-	if bm.IsSet(11) {
-		fs := s.GetField(11)
-		if fs == nil {
-			return fmt.Errorf("no spec for field %d", 11)
-		}
-		val, consumed, err := iso8583.UnpackField(data[cursor:], fs)
-		if err != nil {
-			return err
-		}
-		if err := iso8583.ParseValue(val, &m.STAN); err != nil {
-			return err
-		}
-		cursor += consumed
-	}
-	if bm.IsSet(12) {
-		fs := s.GetField(12)
-		if fs == nil {
-			return fmt.Errorf("no spec for field %d", 12)
-		}
-		val, consumed, err := iso8583.UnpackField(data[cursor:], fs)
-		if err != nil {
-			return err
-		}
-		if err := iso8583.ParseValue(val, &m.TimeLocal); err != nil {
-			return err
-		}
-		cursor += consumed
-	}
-	if bm.IsSet(13) {
-		fs := s.GetField(13)
-		if fs == nil {
-			return fmt.Errorf("no spec for field %d", 13)
-		}
-		val, consumed, err := iso8583.UnpackField(data[cursor:], fs)
-		if err != nil {
-			return err
-		}
-		if err := iso8583.ParseValue(val, &m.DateLocal); err != nil {
-			return err
-		}
-		cursor += consumed
-	}
-	if bm.IsSet(35) {
-		fs := s.GetField(35)
-		if fs == nil {
-			return fmt.Errorf("no spec for field %d", 35)
-		}
-		val, consumed, err := iso8583.UnpackField(data[cursor:], fs)
-		if err != nil {
-			return err
-		}
-		if err := iso8583.ParseValue(val, &m.Track2); err != nil {
-			return err
-		}
-		cursor += consumed
-	}
-	if bm.IsSet(37) {
-		fs := s.GetField(37)
-		if fs == nil {
-			return fmt.Errorf("no spec for field %d", 37)
-		}
-		val, consumed, err := iso8583.UnpackField(data[cursor:], fs)
-		if err != nil {
-			return err
-		}
-		if err := iso8583.ParseValue(val, &m.RetRefNum); err != nil {
-			return err
-		}
-		cursor += consumed
-	}
-	if bm.IsSet(41) {
-		fs := s.GetField(41)
-		if fs == nil {
-			return fmt.Errorf("no spec for field %d", 41)
-		}
-		val, consumed, err := iso8583.UnpackField(data[cursor:], fs)
-		if err != nil {
-			return err
-		}
-		if err := iso8583.ParseValue(val, &m.TerminalID); err != nil {
-			return err
-		}
-		cursor += consumed
-	}
-	if bm.IsSet(49) {
-		fs := s.GetField(49)
-		if fs == nil {
-			return fmt.Errorf("no spec for field %d", 49)
-		}
-		val, consumed, err := iso8583.UnpackField(data[cursor:], fs)
-		if err != nil {
-			return err
-		}
-		if err := iso8583.ParseValue(val, &m.CurrencyCode); err != nil {
-			return err
-		}
-		cursor += consumed
 	}
 
 	return nil

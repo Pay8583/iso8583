@@ -18,6 +18,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Pay8583/iso8583"
@@ -79,6 +80,20 @@ func decodeInput(raw []byte, format string) ([]byte, error) {
 	}
 }
 
+// parseMTI parses an MTI string (e.g. "0200") into a uint.
+func parseMTI(s string) (uint, error) {
+	var mti uint
+	if _, err := fmt.Sscanf(s, "%04X", &mti); err != nil {
+		return 0, fmt.Errorf("invalid MTI %q: must be 4 hex digits", s)
+	}
+	return mti, nil
+}
+
+// formatMTI formats a uint MTI as a 4-digit hex string.
+func formatMTI(mti uint) string {
+	return fmt.Sprintf("%04X", mti)
+}
+
 // ── decode ───────────────────────────────────────────────────────────────────────
 
 func decodeCmd(args []string) {
@@ -102,13 +117,13 @@ func decodeCmd(args []string) {
 		os.Exit(1)
 	}
 
-	s, err := spec.Get(specName)
+	p, err := spec.Get(specName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "spec: %v\navailable: %s\n", err, strings.Join(spec.List(), ", "))
 		os.Exit(1)
 	}
 
-	msg := iso8583.NewMessage(s, "")
+	msg := iso8583.NewMessage(p, 0)
 	if err := msg.Unpack(data); err != nil {
 		fmt.Fprintf(os.Stderr, "unpack: %v\n", err)
 		os.Exit(1)
@@ -122,11 +137,10 @@ func decodeCmd(args []string) {
 }
 
 func outputTable(msg *iso8583.Message) {
-	fmt.Printf("MTI:    %s\n", msg.MTI)
-	fmt.Printf("Spec:   %s (%s)\n", msg.Spec.Name, msg.Spec.Version)
+	fmt.Printf("MTI:    %s\n", formatMTI(msg.MTI))
+	fmt.Printf("Spec:   %s (%s)\n", msg.Protocol.Name, msg.Protocol.Version)
 	fmt.Printf("Fields: %d\n\n", len(msg.Fields))
 
-	// Column widths.
 	fmt.Printf("%-6s %-32s %s\n", "Field", "Name", "Value")
 	fmt.Printf("%-6s %-32s %s\n", "-----", "----", "-----")
 
@@ -140,7 +154,6 @@ func outputTable(msg *iso8583.Message) {
 	for _, n := range numbers {
 		name := names[n]
 		val := msg.Fields[n]
-		// Truncate long values for display.
 		display := val
 		if len(val) > 60 {
 			display = val[:57] + "..."
@@ -160,8 +173,8 @@ func outputJSON(msg *iso8583.Message) {
 		Spec   string  `json:"spec"`
 		Fields []field `json:"fields"`
 	}{
-		MTI:  msg.MTI,
-		Spec: msg.Spec.Name,
+		MTI:  formatMTI(msg.MTI),
+		Spec: msg.Protocol.Name,
 	}
 
 	names := msg.FieldNames()
@@ -184,21 +197,27 @@ func outputJSON(msg *iso8583.Message) {
 // ── encode ───────────────────────────────────────────────────────────────────────
 
 func encodeCmd(args []string) {
-	var specName, fields, mti, format string
+	var specName, fields, mtiStr, format string
 	fs := newFlagSet("encode")
 	fs.StringVar(&specName, "spec", "1987", "spec name")
 	fs.StringVar(&fields, "fields", "", "comma-separated field=value pairs (e.g. \"2=400...,3=301000\")")
-	fs.StringVar(&mti, "mti", "0200", "message type indicator")
+	fs.StringVar(&mtiStr, "mti", "0200", "message type indicator (4 hex digits)")
 	fs.StringVar(&format, "format", "hex", "output format: hex, base64, raw")
 	fs.Parse(args)
 
-	s, err := spec.Get(specName)
+	p, err := spec.Get(specName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "spec: %v\n", err)
 		os.Exit(1)
 	}
 
-	msg := iso8583.NewMessage(s, mti)
+	mti, err := parseMTI(mtiStr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "mti: %v\n", err)
+		os.Exit(1)
+	}
+
+	msg := iso8583.NewMessage(p, mti)
 	for _, pair := range strings.Split(fields, ",") {
 		pair = strings.TrimSpace(pair)
 		if pair == "" {
@@ -209,8 +228,8 @@ func encodeCmd(args []string) {
 			fmt.Fprintf(os.Stderr, "bad field format: %q (expected field=value)\n", pair)
 			os.Exit(1)
 		}
-		n := 0
-		if _, err := fmt.Sscanf(kv[0], "%d", &n); err != nil || n < 2 {
+		n, err := strconv.Atoi(kv[0])
+		if err != nil || n < 2 {
 			fmt.Fprintf(os.Stderr, "bad field number: %q\n", kv[0])
 			os.Exit(1)
 		}
@@ -327,18 +346,12 @@ func verifyCmd(args []string) {
 
 func specsCmd() {
 	for _, name := range spec.List() {
-		s, err := spec.Get(name)
+		p, err := spec.Get(name)
 		if err != nil {
 			continue
 		}
-		n := 0
-		for _, fs := range s.Fields {
-			if fs != nil && !fs.Optional {
-				n++
-			}
-		}
-		fmt.Printf("%-8s version=%-6s fields=%d (required=%d) secondary=%v\n  %s\n",
-			s.Name, s.Version, len(s.Fields), n, s.HasSecondaryBitmap, s.Description)
+		fmt.Printf("%-8s version=%-6s fields=%d secondary=%v\n  %s\n",
+			p.Name, p.Version, p.NumFields(), p.HasSecondaryBitmap(), p.Description)
 	}
 }
 
@@ -366,8 +379,6 @@ func makeSigner(alg string, key []byte) (iso8583.Signer, error) {
 
 // ── flag helpers ────────────────────────────────────────────────────────────────
 
-// newFlagSet creates a flag.FlagSet that continues on error so we can print our own
-// usage messages.
 func newFlagSet(name string) *flagSet { return &flagSet{name: name} }
 
 type flagSet struct {
@@ -392,7 +403,6 @@ func (f *flagSet) BoolVar(p *bool, name string, value bool, usage string) {
 }
 
 func (f *flagSet) Parse(args []string) {
-	// Simple flag parser: --key value or --flag
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if !strings.HasPrefix(a, "--") {

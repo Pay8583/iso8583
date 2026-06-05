@@ -2,63 +2,76 @@ package spec
 
 import "github.com/Pay8583/iso8583/encoding"
 
-// ISO8583_1987 is the built-in spec for ISO 8583:1987 (fields 1–64).
-var ISO8583_1987 *Spec
-
-func init() {
-	asciiEnc := encoding.MustGet("ascii")
-	bcdEnc := encoding.MustGet("bcd")
-	binEnc := encoding.MustGet("binary")
-
-	s := NewSpec("1987", "1987")
-	s.MtiEncoder = asciiEnc
-	s.MaxField = 64
-	s.HasSecondaryBitmap = false
-	s.Description = "ISO 8583:1987 — original standard, fields 1–64, no secondary bitmap"
-
-	fields := []FieldSpec{
-		{Index: 2, Name: "Primary Account Number", LengthType: LLVAR, ContentType: Numeric, Encoder: bcdEnc, MaxLen: 19},
-		{Index: 3, Name: "Processing Code", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 6},
-		{Index: 4, Name: "Transaction Amount", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 12},
-		{Index: 7, Name: "Transmission Date & Time", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 10},
-		{Index: 11, Name: "Systems Trace Audit Number", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 6},
-		{Index: 12, Name: "Time Local Transaction", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 6},
-		{Index: 13, Name: "Date Local Transaction", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 4},
-		{Index: 14, Name: "Expiration Date", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 4},
-		{Index: 15, Name: "Settlement Date", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 4},
-		{Index: 18, Name: "Merchant Type", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 4},
-		{Index: 22, Name: "POS Entry Mode", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 3},
-		{Index: 23, Name: "Card Sequence Number", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 3},
-		{Index: 25, Name: "POS Condition Code", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 2},
-		{Index: 28, Name: "Transaction Fee Amount", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 8},
-		{Index: 32, Name: "Acquiring Institution ID", LengthType: LLVAR, ContentType: Numeric, Encoder: bcdEnc, MaxLen: 11},
-		{Index: 33, Name: "Forwarding Institution ID", LengthType: LLVAR, ContentType: Numeric, Encoder: bcdEnc, MaxLen: 11},
-		{Index: 35, Name: "Track 2 Data", LengthType: LLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 37},
-		{Index: 37, Name: "Retrieval Reference Number", LengthType: Fixed, ContentType: Alpha, Encoder: asciiEnc, FixedLen: 12},
-		{Index: 38, Name: "Authorization ID Response", LengthType: Fixed, ContentType: Alpha, Encoder: asciiEnc, FixedLen: 6},
-		{Index: 39, Name: "Response Code", LengthType: Fixed, ContentType: Alpha, Encoder: asciiEnc, FixedLen: 2},
-		{Index: 41, Name: "Card Acceptor Terminal ID", LengthType: Fixed, ContentType: Alpha, Encoder: asciiEnc, FixedLen: 8},
-		{Index: 42, Name: "Card Acceptor ID", LengthType: Fixed, ContentType: Alpha, Encoder: asciiEnc, FixedLen: 15},
-		{Index: 43, Name: "Card Acceptor Name/Location", LengthType: Fixed, ContentType: Alpha, Encoder: asciiEnc, FixedLen: 40},
-		{Index: 45, Name: "Track 1 Data", LengthType: LLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 76},
-		{Index: 48, Name: "Additional Data — Private", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999},
-		{Index: 49, Name: "Currency Code (Transaction)", LengthType: Fixed, ContentType: Alpha, Encoder: asciiEnc, FixedLen: 3},
-		{Index: 51, Name: "Currency Code (Cardholder Billing)", LengthType: Fixed, ContentType: Alpha, Encoder: asciiEnc, FixedLen: 3},
-		{Index: 52, Name: "PIN Data", LengthType: Fixed, ContentType: Binary, Encoder: binEnc, FixedLen: 8},
-		{Index: 53, Name: "Security Control Info", LengthType: Fixed, ContentType: Numeric, Encoder: bcdEnc, FixedLen: 16},
-		{Index: 54, Name: "Additional Amounts", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 120},
-		{Index: 55, Name: "ICC System Related Data", LengthType: LLLVAR, ContentType: Binary, Encoder: binEnc, MaxLen: 255},
-		{Index: 60, Name: "Private Data (60)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999},
-		{Index: 61, Name: "Private Data (61)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999},
-		{Index: 62, Name: "Private Data (62)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999},
-		{Index: 63, Name: "Private Data (63)", LengthType: LLLVAR, ContentType: Alpha, Encoder: asciiEnc, MaxLen: 999},
-		{Index: 64, Name: "MAC", LengthType: Fixed, ContentType: Binary, Encoder: binEnc, FixedLen: 8},
-	}
-
-	for i := range fields {
-		s.AddField(fields[i].Index, fields[i])
-	}
-
-	ISO8583_1987 = s
-	MustRegister(s)
+// V1987 is the ISO 8583:1987 protocol definition with ASCII MTI and hex bitmap.
+// Fields 2–64 are defined; no secondary bitmap.
+var V1987 = Protocol{
+	Name:    "1987",
+	Version: "1987",
+	MTI:     ASCIIMTI,
+	Bitmap:  HexBitmap,
+	Fields: []Field{
+		{Name: "PAN", Len: LVAR(19, encoding.MustGet("bcd")), Valid: N, Value: ASCII, Secure: true},
+		{Name: "ProcessingCode", Len: Fixed(6, '0'), Valid: N, Value: ASCII},
+		{Name: "AmountTransaction", Len: Fixed(12, '0'), Valid: N, Value: ASCII},
+		{Name: "AmountSettlement", Len: Fixed(12, '0'), Valid: N, Value: ASCII},
+		{Name: "AmountCardholderBilling", Len: Fixed(12, '0'), Valid: N, Value: ASCII},
+		{Name: "TransmissionDateTime", Len: Fixed(10, '0'), Valid: N, Value: ASCII},
+		{Name: "AmountCardholderBillingFee", Len: Fixed(8, '0'), Valid: N, Value: ASCII},
+		{Name: "ConversionRateSettlement", Len: Fixed(8, '0'), Valid: N, Value: ASCII},
+		{Name: "ConversionRateCardholderBilling", Len: Fixed(8, '0'), Valid: N, Value: ASCII},
+		{Name: "STAN", Len: Fixed(6, '0'), Valid: N, Value: ASCII},
+		{Name: "LocalTransactionTime", Len: Fixed(6, '0'), Valid: N, Value: ASCII},
+		{Name: "LocalTransactionDate", Len: Fixed(4, '0'), Valid: N, Value: ASCII},
+		{Name: "ExpirationDate", Len: Fixed(4, '0'), Valid: N, Value: ASCII, Secure: true},
+		{Name: "SettlementDate", Len: Fixed(4, '0'), Valid: N, Value: ASCII},
+		{Name: "CurrencyConversionDate", Len: Fixed(4, '0'), Valid: N, Value: ASCII},
+		{Name: "CaptureDate", Len: Fixed(4, '0'), Valid: N, Value: ASCII},
+		{Name: "MerchantType", Len: Fixed(4, '0'), Valid: N, Value: ASCII},
+		{Name: "AcquiringInstitutionCountry", Len: Fixed(3, '0'), Valid: N, Value: ASCII},
+		{Name: "PANExtendedCountry", Len: Fixed(3, '0'), Valid: N, Value: ASCII},
+		{Name: "ForwardingInstitutionCountry", Len: Fixed(3, '0'), Valid: N, Value: ASCII},
+		{Name: "PointOfServiceEntryMode", Len: Fixed(3, '0'), Valid: N, Value: ASCII},
+		{Name: "ApplicationPANSequenceNumber", Len: Fixed(3, '0'), Valid: N, Value: ASCII},
+		{Name: "FunctionCode", Len: Fixed(3, '0'), Valid: N, Value: ASCII},
+		{Name: "PointOfServiceConditionCode", Len: Fixed(2, '0'), Valid: N, Value: ASCII},
+		{Name: "PointOfServiceCaptureCode", Len: Fixed(2, '0'), Valid: N, Value: ASCII},
+		{Name: "AuthorizingIdentificationResponseLength", Len: Fixed(1, '0'), Valid: N, Value: ASCII},
+		{Name: "AmountTransactionFee", Len: Fixed(9, '0'), Valid: XN, Value: ASCII},
+		{Name: "AmountSettlementFee", Len: Fixed(9, '0'), Valid: XN, Value: ASCII},
+		{Name: "AmountTransactionProcessingFee", Len: Fixed(9, '0'), Valid: XN, Value: ASCII},
+		{Name: "AmountSettlementProcessingFee", Len: Fixed(9, '0'), Valid: XN, Value: ASCII},
+		{Name: "AcquiringInstitutionID", Len: LVAR(11, encoding.MustGet("bcd")), Valid: N, Value: ASCII},
+		{Name: "ForwardingInstitutionID", Len: LVAR(11, encoding.MustGet("bcd")), Valid: N, Value: ASCII},
+		{Name: "PANExtended", Len: LVAR(28, encoding.MustGet("bcd")), Valid: NS, Value: Text},
+		{Name: "Track2Data", Len: LVAR(37, encoding.MustGet("bcd")), Valid: Z, Value: ASCII, Secure: true},
+		{Name: "Track3Data", Len: LVAR(104, encoding.MustGet("bcd")), Valid: ANS, Value: Text, Secure: true},
+		{Name: "RetrievalReferenceNumber", Len: Fixed(12, ' '), Valid: ANS, Value: Text},
+		{Name: "AuthorizationIdentificationResponse", Len: Fixed(6, ' '), Valid: ANS, Value: Text},
+		{Name: "ResponseCode", Len: Fixed(2, ' '), Valid: ANS, Value: Text},
+		{Name: "ServiceRestrictionCode", Len: Fixed(3, ' '), Valid: ANS, Value: Text},
+		{Name: "CardAcceptorTerminalID", Len: Fixed(8, ' '), Valid: ANS, Value: Text},
+		{Name: "CardAcceptorID", Len: Fixed(15, ' '), Valid: ANS, Value: Text},
+		{Name: "CardAcceptorNameLocation", Len: Fixed(40, ' '), Valid: ANS, Value: Text},
+		{Name: "AdditionalResponseData", Len: LVAR(1000, encoding.MustGet("bcd")), Valid: ANS, Value: Text},
+		{Name: "Track1Data", Len: LVAR(76, encoding.MustGet("bcd")), Valid: ANS, Value: Text, Secure: true},
+		{Name: "AdditionalDataISO", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text},
+		{Name: "AdditionalDataNational", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text},
+		{Name: "AdditionalDataPrivate", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text},
+		{Name: "CurrencyCodeTransaction", Len: Fixed(3, ' '), Valid: ANS, Value: Text},
+		{Name: "CurrencyCodeSettlement", Len: Fixed(3, ' '), Valid: ANS, Value: Text},
+		{Name: "CurrencyCodeCardholderBilling", Len: Fixed(3, ' '), Valid: ANS, Value: Text},
+		{Name: "PINData", Len: Fixed(16, 0x00), Valid: B, Value: Hex, Secure: true},
+		{Name: "SecurityControlInfo", Len: Fixed(16, '0'), Valid: N, Value: ASCII, Secure: true},
+		{Name: "AdditionalAmounts", Len: LVAR(120, encoding.MustGet("bcd")), Valid: ANS, Value: Text, Secure: true},
+		{Name: "ICCData", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text, Secure: true},
+		{Name: "ReservedISO56", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text},
+		{Name: "ReservedNational57", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text},
+		{Name: "ReservedNational58", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text},
+		{Name: "ReservedNational59", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text},
+		{Name: "ReservedNational60", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text, Secure: true},
+		{Name: "ReservedPrivate61", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text, Secure: true},
+		{Name: "ReservedPrivate62", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text, Secure: true},
+		{Name: "ReservedPrivate63", Len: LVAR(999, encoding.MustGet("bcd")), Valid: ANS, Value: Text},
+		{Name: "MAC", Len: Fixed(16, '0'), Valid: B, Value: Hex, Secure: true},
+	},
 }

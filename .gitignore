@@ -7,3 +7,5 @@
 .claude/
 iso8583
 cover.out
+03_codegen
+*_iso8583

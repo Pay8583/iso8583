@@ -30,12 +30,12 @@ func TestGenerator_Compiles(t *testing.T) {
 	structSrc := `package main
 
 type AuthRequest struct {
-	MTI          string ` + "`iso8583:\"mti\"`" + `
-	PAN          string ` + "`iso8583:\"2,llvar,bcd,numeric\"`" + `
-	ProcCode     string ` + "`iso8583:\"3,bcd,numeric,len=6\"`" + `
-	Amount       int64  ` + "`iso8583:\"4,bcd,numeric,len=12\"`" + `
-	STAN         string ` + "`iso8583:\"11,bcd,numeric,len=6\"`" + `
-	TerminalID   string ` + "`iso8583:\"41,ascii,len=8\"`" + `
+	MTI        uint   ` + "`iso8583:\"mti\"`" + `
+	PAN        string ` + "`iso8583:\"2,llvar,bcd,n,secure\"`" + `
+	ProcCode   string ` + "`iso8583:\"3,fixed=6,bcd,n\"`" + `
+	Amount     int64  ` + "`iso8583:\"4,fixed=12,rbcd,n\"`" + `
+	STAN       string ` + "`iso8583:\"11,fixed=6,bcd,n\"`" + `
+	TerminalID string ` + "`iso8583:\"41,fixed=8,ascii,ans\"`" + `
 }
 `
 	mainSrc := `package main
@@ -48,7 +48,6 @@ func main() {}
 		t.Fatal(err)
 	}
 
-	// Create go.mod for the test package, pointing to the local module.
 	gomod := `module testgen
 
 go 1.26
@@ -65,12 +64,51 @@ replace github.com/Pay8583/iso8583 => ` + moduleRoot() + `
 		t.Fatalf("Generate: %v", err)
 	}
 
+	// Read generated code to verify it contains expected elements.
+	generated, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("Read generated: %v", err)
+	}
+	genStr := string(generated)
+
+	// Verify key patterns in generated code.
+	checks := []string{
+		"func (m *AuthRequest) MarshalISO8583(p *spec.Protocol)",
+		"func (m *AuthRequest) UnmarshalISO8583(data []byte, p *spec.Protocol)",
+		"iso8583.NewWriter(p, &buf)",
+		"iso8583.NewReader(p, bytes.NewReader(data))",
+		"w.WriteMTI(uint(m.MTI))",
+		"w.WriteString(2, m.PAN)",
+		"w.WriteString(3, m.ProcCode)",
+		"w.WriteInt(4, int64(m.Amount))",
+		"w.WriteString(11, m.STAN)",
+		"w.WriteString(41, m.TerminalID)",
+	}
+	for _, c := range checks {
+		if !containsString(genStr, c) {
+			t.Errorf("generated code missing: %s", c)
+		}
+	}
+
 	// Verify generated code compiles.
 	cmd := exec.Command("go", "build", tmpDir)
 	cmd.Dir = tmpDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("go build of generated code failed:\n%s", out)
+		t.Fatalf("go build of generated code failed:\n%s\n\nGenerated code:\n%s", out, genStr)
 	}
 	t.Log("generated code compiles successfully")
+}
+
+func containsString(s, sub string) bool {
+	return len(s) >= len(sub) && searchString(s, sub)
+}
+
+func searchString(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
 }

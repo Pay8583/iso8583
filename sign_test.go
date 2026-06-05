@@ -9,6 +9,7 @@ import (
 
 	"github.com/Pay8583/iso8583/mac"
 	"github.com/Pay8583/iso8583/padding"
+	"github.com/Pay8583/iso8583/spec"
 )
 
 func TestHMACSHA256_SignVerify(t *testing.T) {
@@ -138,11 +139,11 @@ func TestSignMessage(t *testing.T) {
 	signer := &mac.HMACSigner{Key: []byte("test-key"), Hash: "sha256"}
 	msg := []byte("01206020000000000000") // MTI + bitmap + minimal data
 
-	sig, err := SignMessage(msg, signer, nil)
+	sig, err := SignMessage(msg, signer)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := VerifyMessage(msg, signer, sig, nil); err != nil {
+	if err := VerifyMessage(msg, signer, sig); err != nil {
 		t.Errorf("VerifyMessage: %v", err)
 	}
 }
@@ -155,7 +156,7 @@ func TestExtractPayload(t *testing.T) {
 		t.Errorf("default payload len = %d, want %d", len(payload), len(data)-4)
 	}
 	// Include MTI + bitmap.
-	payload = extractPayload(data, &SignOptions{IncludeMTI: true, IncludeBitmap: true})
+	payload = extractPayload(data, &spec.SignConfig{IncludeMTI: true, IncludeBitmap: true})
 	if len(payload) != len(data) {
 		t.Errorf("include MTI+bitmap: payload len = %d, want %d", len(payload), len(data))
 	}

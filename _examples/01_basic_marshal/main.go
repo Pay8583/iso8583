@@ -1,4 +1,4 @@
-// Example: basic marshal/unmarshal using reflection codec.
+// Example: basic marshal/unmarshal using struct tags and the reflection codec.
 package main
 
 import (
@@ -11,24 +11,24 @@ import (
 )
 
 type AuthRequest struct {
-	MTI          string `iso8583:"mti"`
-	PAN          string `iso8583:"2,llvar,bcd,numeric"`
-	ProcCode     string `iso8583:"3,bcd,numeric,len=6"`
-	Amount       int64  `iso8583:"4,bcd,numeric,len=12"`
-	STAN         string `iso8583:"11,bcd,numeric,len=6"`
-	TimeLocal    string `iso8583:"12,bcd,numeric,len=6"`
-	DateLocal    string `iso8583:"13,bcd,numeric,len=4"`
-	Track2       string `iso8583:"35,llvar,ascii"`
-	RetRefNum    string `iso8583:"37,ascii,len=12"`
-	TerminalID   string `iso8583:"41,ascii,len=8"`
-	CurrencyCode string `iso8583:"49,ascii,len=3"`
+	MTI          uint   `iso8583:"mti"`
+	PAN          string `iso8583:"2,llvar,bcd,n"`
+	ProcCode     string `iso8583:"3,fixed=6,bcd,n"`
+	Amount       int64  `iso8583:"4,fixed=12,rbcd,n"`
+	STAN         string `iso8583:"11,fixed=6,bcd,n"`
+	TimeLocal    string `iso8583:"12,fixed=6,bcd,n"`
+	DateLocal    string `iso8583:"13,fixed=4,bcd,n"`
+	Track2       string `iso8583:"35,llvar,ascii,z"`
+	RetRefNum    string `iso8583:"37,fixed=12,ascii,ans"`
+	TerminalID   string `iso8583:"41,fixed=8,ascii,ans"`
+	CurrencyCode string `iso8583:"49,fixed=3,ascii,ans"`
 }
 
 func main() {
-	s := spec.MustGet("1987")
+	p := spec.MustGet("1987")
 
 	req := AuthRequest{
-		MTI:          "0200",
+		MTI:          0x0200,
 		PAN:          "4000001234567890",
 		ProcCode:     "301000",
 		Amount:       1000,
@@ -41,16 +41,20 @@ func main() {
 		CurrencyCode: "840",
 	}
 
-	data, err := iso8583.Marshal(&req, s)
+	data, err := iso8583.Marshal(&req, p)
 	if err != nil {
 		log.Fatalf("Marshal: %v", err)
 	}
 	fmt.Printf("Packed (%d bytes): %s\n", len(data), hex.EncodeToString(data))
 
 	var resp AuthRequest
-	if err := iso8583.Unmarshal(data, &resp, s); err != nil {
+	if err := iso8583.Unmarshal(data, &resp, p); err != nil {
 		log.Fatalf("Unmarshal: %v", err)
 	}
-	fmt.Printf("Unpacked MTI: %s, PAN: %s, Amount: %d, STAN: %s\n",
+	fmt.Printf("Unpacked MTI: %#x, PAN: %s, Amount: %d, STAN: %s\n",
 		resp.MTI, resp.PAN, resp.Amount, resp.STAN)
+
+	// Security-aware export (secure fields like PAN are masked).
+	export, _ := iso8583.ExportStruct(&resp, p)
+	fmt.Printf("Export (PAN masked): %v\n", export)
 }
